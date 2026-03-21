@@ -5,16 +5,17 @@ import {
   Terminal,
   ShieldAlert,
   Zap,
-  Code2,
   RotateCcw,
   Check,
   Copy,
   AlertTriangle,
   Cpu,
-  RefreshCcw,
   Layout,
+  ChevronRight,
 } from 'lucide-react'
+
 import { motion, AnimatePresence } from 'framer-motion'
+
 import ReactDiffViewer from 'react-diff-viewer-continued'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +34,6 @@ export default function CodeReviewHITL() {
   const [copied, setCopied] = useState(false)
   const [isSplitView, setIsSplitView] = useState(true)
 
-  // Memoized stats to prevent layout shifts
   const hasIssues = useMemo(() => {
     if (!result) return false
     return result.bugs.length > 0 || result.security.length > 0
@@ -63,16 +63,13 @@ export default function CodeReviewHITL() {
       )
 
       if (!response.ok) throw new Error('SENTINEL_UNREACHABLE')
-
       const data = await response.json()
       if (data.error) throw new Error(data.error)
-
       setResult(data)
     } catch (err) {
       setError(
-        'Engine Disconnect: The Architect core is currently unreachable. Retrying might restore the link.',
+        'Engine Disconnect: The Architect core is unreachable. Check your uplink.',
       )
-      console.error('Core Audit Error:', err)
     } finally {
       setIsAnalyzing(false)
     }
@@ -87,52 +84,42 @@ export default function CodeReviewHITL() {
   }, [result])
 
   return (
-    <div className='relative min-h-175 w-full max-w-7xl mx-auto'>
+    <div className='relative w-full max-w-7xl mx-auto min-h-125'>
       <AnimatePresence mode='wait'>
         {!result ? (
           <motion.div
-            key='editor-view'
-            initial={{ opacity: 0, y: 20 }}
+            key='editor'
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className='space-y-8'
+            exit={{ opacity: 0, scale: 0.98 }}
+            className='space-y-6'
           >
-            {/* Input Terminal */}
-            <div className='group bg-[#020617] border border-slate-800 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.5)] rounded-md overflow-hidden transition-all duration-500 focus-within:border-[#ff4f00]/50'>
-              <div className='border-b border-slate-800 p-6 flex justify-between items-center bg-slate-900/60 backdrop-blur-xl'>
-                <div className='flex items-center gap-4'>
-                  <div className='flex gap-2'>
-                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-red-500/60 transition-colors' />
-                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-amber-500/60 transition-colors' />
-                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-green-500/60 transition-colors' />
+            <div className='group bg-[#020617] border border-slate-800 shadow-2xl rounded-sm overflow-hidden'>
+              <div className='border-b border-slate-800 p-4 md:p-6 flex flex-wrap justify-between items-center gap-4 bg-slate-900/60 backdrop-blur-xl'>
+                <div className='flex items-center gap-3'>
+                  <div className='flex gap-1.5'>
+                    <div className='w-2 h-2 rounded-full bg-red-500/40' />
+                    <div className='w-2 h-2 rounded-full bg-amber-500/40' />
+                    <div className='w-2 h-2 rounded-full bg-green-500/40' />
                   </div>
-                  <div className='h-5 w-px bg-slate-800 mx-2' />
-                  <div className='flex items-center gap-3'>
-                    <Terminal className='w-4 h-4 text-[#ff4f00]' />
-                    <span className='text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-focus-within:text-slate-200 transition-colors'>
-                      Input_Logic_Buffer
+                  <div className='h-4 w-px bg-slate-800' />
+                  <Terminal className='w-4 h-4 text-[#ff4f00]' />
+                  <span className='text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400'>
+                    Logic_Buffer
+                  </span>
+                </div>
+                {isAnalyzing && (
+                  <div className='flex items-center gap-2 bg-[#ff4f00]/10 px-3 py-1 rounded-full'>
+                    <RotateCcw className='w-3 h-3 text-[#ff4f00] animate-spin' />
+                    <span className='text-[8px] font-black text-[#ff4f00] uppercase tracking-widest'>
+                      Analyzing
                     </span>
                   </div>
-                </div>
-
-                <AnimatePresence>
-                  {isAnalyzing && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className='flex items-center gap-3 bg-[#ff4f00]/10 px-4 py-1.5 rounded-full border border-[#ff4f00]/20'
-                    >
-                      <span className='text-[9px] font-black text-[#ff4f00] uppercase tracking-widest'>
-                        Processing_Core_Heuristics
-                      </span>
-                      <RotateCcw className='w-3 h-3 text-[#ff4f00] animate-spin' />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                )}
               </div>
 
               <textarea
-                className='w-full h-137.5 p-12 focus:outline-none font-mono text-sm leading-relaxed resize-none bg-transparent text-slate-300 placeholder:text-slate-800 border-none selection:bg-[#ff4f00]/40 custom-scrollbar'
+                className='w-full h-87.5 md:h-125 p-6 md:p-10 focus:outline-none font-mono text-xs md:text-sm leading-relaxed resize-none bg-transparent text-slate-300 placeholder:text-slate-800 border-none selection:bg-[#ff4f00]/30 custom-scrollbar'
                 placeholder='// SECURE CHANNEL OPEN. PASTE SOURCE FOR ARCHITECT ANALYSIS...'
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -141,180 +128,149 @@ export default function CodeReviewHITL() {
             </div>
 
             {error && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className='bg-red-950/30 border-l-4 border-red-600 p-6 flex items-center gap-5 text-red-200 text-xs font-bold uppercase tracking-wide shadow-lg'
-              >
-                <AlertTriangle className='w-5 h-5 shrink-0 text-red-500' />{' '}
+              <div className='bg-red-950/20 border-l-2 border-red-600 p-4 flex items-start gap-4 text-red-200 text-[10px] md:text-xs font-bold uppercase tracking-wide'>
+                <AlertTriangle className='w-4 h-4 shrink-0 text-red-500' />
                 {error}
-              </motion.div>
+              </div>
             )}
 
             <button
               onClick={handleReview}
               disabled={!code || isAnalyzing}
               className={cn(
-                'w-full py-10 font-space font-black uppercase tracking-[0.5em] text-xs transition-all relative overflow-hidden group rounded-md',
+                'w-full py-8 md:py-12 font-space font-black uppercase tracking-[0.4em] text-[10px] md:text-xs transition-all rounded-sm flex items-center justify-center gap-4',
                 isAnalyzing
                   ? 'bg-slate-900 text-slate-600'
-                  : 'bg-[#ff4f00] text-white hover:bg-white hover:text-black',
+                  : 'bg-[#ff4f00] text-white hover:bg-white hover:text-black hover:shadow-[0_0_40px_rgba(255,79,0,0.2)]',
               )}
             >
-              <span className='relative z-10'>
-                {isAnalyzing
-                  ? 'Synchronizing Neural Paths...'
-                  : 'Execute Structural Audit'}
-              </span>
-              <div className='absolute inset-0 bg-black/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300' />
+              {isAnalyzing ? 'Processing Engine...' : 'Execute Audit'}
+              {!isAnalyzing && <ChevronRight className='w-4 h-4' />}
             </button>
           </motion.div>
         ) : (
           <motion.div
-            key='result-view'
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className='space-y-8'
+            key='result'
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className='space-y-6 md:space-y-8'
           >
-            {/* Analysis Summary Header */}
-            <div className='flex flex-col lg:flex-row justify-between items-stretch bg-white border border-slate-200 shadow-2xl rounded-md overflow-hidden'>
-              <div className='p-10 flex items-center gap-8 lg:border-r border-slate-100 flex-1'>
+            {/* Summary Header */}
+            <div className='flex flex-col md:flex-row bg-white border border-slate-200 shadow-xl rounded-sm overflow-hidden'>
+              <div className='p-6 md:p-8 flex items-center gap-6 flex-1 border-b md:border-b-0 md:border-r border-slate-100'>
                 <div
                   className={cn(
-                    'w-16 h-16 flex items-center justify-center rounded-2xl transition-colors shrink-0',
+                    'w-12 h-12 flex items-center justify-center rounded-sm',
                     hasIssues
                       ? 'bg-red-50 text-red-600'
                       : 'bg-green-50 text-green-600',
                   )}
                 >
                   {hasIssues ? (
-                    <ShieldAlert className='w-8 h-8' />
+                    <ShieldAlert className='w-6 h-6' />
                   ) : (
-                    <Check className='w-8 h-8' />
+                    <Check className='w-6 h-6' />
                   )}
                 </div>
                 <div>
-                  <h3 className='font-space font-black uppercase text-lg tracking-tighter text-slate-950'>
-                    {hasIssues
-                      ? 'Vulnerabilities Identified'
-                      : 'Architecture Verified'}
+                  <h3 className='font-space font-black uppercase text-sm md:text-base tracking-tight text-slate-950'>
+                    {hasIssues ? 'Defects Found' : 'Architecture Optimized'}
                   </h3>
-                  <p className='text-[10px] text-slate-400 font-mono uppercase tracking-[0.3em]'>
-                    Session_Token:{' '}
-                    {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                  <p className='text-[8px] md:text-[9px] text-slate-400 font-mono uppercase tracking-widest'>
+                    ID: {Math.random().toString(36).substr(2, 6).toUpperCase()}
                   </p>
                 </div>
               </div>
-
-              <div className='bg-slate-50/50 p-8 flex items-center gap-4 flex-wrap'>
+              <div className='p-4 md:p-6 bg-slate-50/50 flex flex-wrap gap-2'>
                 <button
                   onClick={copyToClipboard}
                   className={cn(
-                    'flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-4 border-2 border-slate-950 text-[10px] font-black uppercase tracking-widest transition-all',
+                    'flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-950 text-[9px] font-black uppercase tracking-widest transition-all',
                     copied
                       ? 'bg-green-600 border-green-600 text-white'
                       : 'hover:bg-slate-950 hover:text-white',
                   )}
                 >
                   {copied ? (
-                    <Check className='w-4 h-4' />
+                    <Check className='w-3 h-3' />
                   ) : (
-                    <Copy className='w-4 h-4' />
+                    <Copy className='w-3 h-3' />
                   )}
-                  {copied ? 'Captured' : 'Copy Optimized Code'}
+                  {copied ? 'Copied' : 'Copy Result'}
                 </button>
                 <button
                   onClick={() => setResult(null)}
-                  className='flex-1 lg:flex-none bg-black text-white px-10 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff4f00] transition-all'
+                  className='flex-1 md:flex-none bg-black text-white px-6 py-3 text-[9px] font-black uppercase tracking-widest hover:bg-[#ff4f00] transition-all'
                 >
-                  Terminate Session
+                  Reset
                 </button>
               </div>
             </div>
 
-            {/* Insight Grid */}
-            <div className='grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200 shadow-xl rounded-md overflow-hidden'>
+            {/* Responsive Insight Grid */}
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-slate-200 border border-slate-200 rounded-sm overflow-hidden shadow-lg'>
               <InsightCard
-                title='Security Threat'
+                title='Security'
                 items={result.security}
                 icon={ShieldAlert}
                 color='text-red-600'
-                bg='hover:bg-red-50/30'
-                emptyMsg='No critical security leaks found.'
+                bg='bg-white'
               />
               <InsightCard
-                title='Logical Defects'
+                title='Logic'
                 items={result.bugs}
                 icon={AlertTriangle}
                 color='text-amber-600'
-                bg='hover:bg-amber-50/30'
-                emptyMsg='Logical integrity is 100%.'
+                bg='bg-white'
               />
               <InsightCard
                 title='Performance'
                 items={result.performance}
                 icon={Zap}
                 color='text-blue-600'
-                bg='hover:bg-blue-50/30'
-                emptyMsg='Performance peak reached.'
+                bg='bg-white'
               />
             </div>
 
-            {/* Comparison Engine */}
-            <div className='bg-[#020617] border border-slate-800 shadow-[0_40px_100px_-30px_rgba(0,0,0,0.6)] rounded-md overflow-hidden'>
-              <div className='bg-slate-900/90 p-6 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-md'>
-                <div className='flex items-center gap-4'>
+            {/* Diff Engine - Responsive Scroll */}
+            <div className='bg-[#020617] border border-slate-800 rounded-sm overflow-hidden shadow-2xl'>
+              <div className='bg-slate-900/90 p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4'>
+                <div className='flex items-center gap-3'>
                   <Cpu className='w-4 h-4 text-[#ff4f00]' />
-                  <span className='text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]'>
-                    Logic_Diff_Viewer
+                  <span className='text-[9px] font-black text-slate-400 uppercase tracking-widest'>
+                    Logic_Diff
                   </span>
                 </div>
-
-                <div className='flex items-center gap-6'>
-                  <button
-                    onClick={() => setIsSplitView(!isSplitView)}
-                    className='hidden sm:flex items-center gap-2 text-[9px] font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors'
-                  >
-                    <Layout className='w-3 h-3' />
-                    {isSplitView ? 'Unified View' : 'Split View'}
-                  </button>
-                  <div className='flex gap-6 font-mono text-[10px] font-bold'>
-                    <span className='text-red-500/80 uppercase tracking-tighter'>
-                      - DEPRECATED
-                    </span>
-                    <span className='text-green-500 uppercase tracking-tighter'>
-                      + OPTIMIZED
-                    </span>
-                  </div>
-                </div>
+                <button
+                  onClick={() => setIsSplitView(!isSplitView)}
+                  className='hidden md:flex items-center gap-2 text-[9px] font-bold text-slate-500 hover:text-white uppercase'
+                >
+                  <Layout className='w-3 h-3' />{' '}
+                  {isSplitView ? 'Unified' : 'Split'}
+                </button>
               </div>
-
-              <div className='diff-viewer-container overflow-x-auto'>
-                <ReactDiffViewer
-                  oldValue={code}
-                  newValue={result.refactored_code}
-                  splitView={isSplitView}
-                  useDarkTheme={true}
-                  styles={{
-                    variables: {
-                      dark: {
-                        diffViewerBackground: 'transparent',
-                        codeFoldGutterBackground: '#020617',
-                        addedBackground: 'rgba(34, 197, 94, 0.08)',
-                        addedGutterBackground: 'rgba(34, 197, 94, 0.12)',
-                        removedBackground: 'rgba(239, 68, 68, 0.08)',
-                        removedGutterBackground: 'rgba(239, 68, 68, 0.12)',
-                        wordAddedBackground: 'rgba(34, 197, 94, 0.25)',
-                        wordRemovedBackground: 'rgba(239, 68, 68, 0.25)',
+              <div className='overflow-x-auto overflow-y-hidden max-w-full'>
+                <div className='min-w-150 md:min-w-full'>
+                  <ReactDiffViewer
+                    oldValue={code}
+                    newValue={result.refactored_code}
+                    splitView={isSplitView}
+                    useDarkTheme={true}
+                    styles={{
+                      variables: {
+                        dark: {
+                          diffViewerBackground: '#020617',
+                          addedBackground: 'rgba(34, 197, 94, 0.05)',
+                          removedBackground: 'rgba(239, 68, 68, 0.05)',
+                        },
                       },
-                    },
-                    contentText: {
-                      fontSize: '13px',
-                      lineHeight: '22px',
-                      fontFamily: 'JetBrains Mono, Menlo, monospace',
-                    },
-                  }}
-                />
+                      contentText: {
+                        fontSize: '12px',
+                        fontFamily: 'JetBrains Mono, monospace',
+                      },
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -324,45 +280,30 @@ export default function CodeReviewHITL() {
   )
 }
 
-function InsightCard({ title, items, icon: Icon, color, bg, emptyMsg }: any) {
+function InsightCard({ title, items, icon: Icon, color, bg }: any) {
   return (
-    <div
-      className={cn(
-        'bg-white p-10 transition-all duration-500 border-none h-full',
-        bg,
-      )}
-    >
-      <div className='flex items-center gap-4 mb-6'>
-        <div className={cn('p-2 rounded-lg bg-slate-50', color)}>
-          <Icon className='w-5 h-5' />
-        </div>
-        <span className='text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]'>
+    <div className={cn('p-6 md:p-8 flex flex-col', bg)}>
+      <div className='flex items-center gap-3 mb-4'>
+        <Icon className={cn('w-4 h-4', color)} />
+        <span className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>
           {title}
         </span>
       </div>
-      <div
-        className={cn('font-bold text-[13px] leading-relaxed space-y-4', color)}
-      >
-        {items && items.length > 0 ? (
+      <div className='space-y-3'>
+        {items?.length > 0 ? (
           items.map((item: string, i: number) => (
-            <motion.div
-              initial={{ opacity: 0, x: -5 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
+            <div
               key={i}
-              className='flex gap-4 group/item'
+              className='flex gap-3 text-xs font-bold text-slate-700 leading-snug'
             >
-              <span className='opacity-30 font-mono text-[10px] mt-1'>
+              <span className='opacity-20 font-mono text-[9px] mt-0.5'>
                 0{i + 1}
               </span>
-              <p className='flex-1'>{item}</p>
-            </motion.div>
+              <p>{item}</p>
+            </div>
           ))
         ) : (
-          <div className='flex items-center gap-3 opacity-40 italic font-medium'>
-            <Check className='w-4 h-4 text-slate-400' />
-            <p>{emptyMsg}</p>
-          </div>
+          <p className='text-[10px] italic text-slate-400'>Verified_Secure</p>
         )}
       </div>
     </div>
