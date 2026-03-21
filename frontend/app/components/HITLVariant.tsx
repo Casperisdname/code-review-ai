@@ -37,11 +37,13 @@ export default function CodeReviewHITL() {
     formData.append('code', code)
 
     try {
-      // Endpoint updated to port 8001 per backend specifications
-      const response = await fetch('http://localhost:8001/review', {
-        method: 'POST',
-        body: formData,
-      })
+      const response = await fetch(
+        'https://code-review-ai-b.onrender.com/review',
+        {
+          method: 'POST',
+          body: formData,
+        },
+      )
 
       if (!response.ok) throw new Error('API_UNREACHABLE')
 
@@ -49,7 +51,7 @@ export default function CodeReviewHITL() {
       setResult(data)
     } catch (err) {
       setError(
-        'System Offline: The Architect Engine (Port 8001) is not responding. Check backend status.',
+        'System Offline: The Architect Engine is not responding. Check backend status.',
       )
       console.error(err)
     } finally {
