@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, useCallback, useMemo } from 'react'
 import {
   Terminal,
   ShieldAlert,
@@ -10,6 +11,8 @@ import {
   Copy,
   AlertTriangle,
   Cpu,
+  RefreshCcw,
+  Layout,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactDiffViewer from 'react-diff-viewer-continued'
@@ -27,9 +30,23 @@ export default function CodeReviewHITL() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<ReviewResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [isSplitView, setIsSplitView] = useState(true)
+
+  // Memoized stats to prevent layout shifts
+  const hasIssues = useMemo(() => {
+    if (!result) return false
+    return result.bugs.length > 0 || result.security.length > 0
+  }, [result])
 
   const handleReview = async () => {
-    if (!code) return
+    if (!code || code.trim().length < 15) {
+      setError(
+        'Architect Buffer Underflow: Provide more context for a meaningful audit.',
+      )
+      return
+    }
+
     setIsAnalyzing(true)
     setError(null)
 
@@ -45,58 +62,78 @@ export default function CodeReviewHITL() {
         },
       )
 
-      if (!response.ok) throw new Error('API_UNREACHABLE')
+      if (!response.ok) throw new Error('SENTINEL_UNREACHABLE')
 
       const data = await response.json()
+      if (data.error) throw new Error(data.error)
+
       setResult(data)
     } catch (err) {
       setError(
-        'System Offline: The Architect Engine is not responding. Check backend status.',
+        'Engine Disconnect: The Architect core is currently unreachable. Retrying might restore the link.',
       )
-      console.error(err)
+      console.error('Core Audit Error:', err)
     } finally {
       setIsAnalyzing(false)
     }
   }
 
-  const copyToClipboard = () => {
+  const copyToClipboard = useCallback(() => {
     if (result?.refactored_code) {
       navigator.clipboard.writeText(result.refactored_code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
-  }
+  }, [result])
 
   return (
-    <div className='relative min-h-150'>
+    <div className='relative min-h-175 w-full max-w-7xl mx-auto'>
       <AnimatePresence mode='wait'>
         {!result ? (
           <motion.div
-            key='editor'
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            className='space-y-6'
+            key='editor-view'
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className='space-y-8'
           >
             {/* Input Terminal */}
-            <div className='bg-[#020617] border border-slate-800 shadow-[12px_12px_0px_0px_rgba(2,6,23,0.05)]'>
-              <div className='border-b border-slate-800 p-5 flex justify-between items-center bg-slate-900/40'>
+            <div className='group bg-[#020617] border border-slate-800 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.5)] rounded-md overflow-hidden transition-all duration-500 focus-within:border-[#ff4f00]/50'>
+              <div className='border-b border-slate-800 p-6 flex justify-between items-center bg-slate-900/60 backdrop-blur-xl'>
                 <div className='flex items-center gap-4'>
-                  <Terminal className='w-4 h-4 text-[#ff4f00]' />
-                  <span className='text-[10px] font-black uppercase tracking-[0.2em] text-slate-200'>
-                    Architect_Input_Stream
-                  </span>
-                </div>
-                {isAnalyzing && (
+                  <div className='flex gap-2'>
+                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-red-500/60 transition-colors' />
+                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-amber-500/60 transition-colors' />
+                    <div className='w-2.5 h-2.5 rounded-full bg-slate-800 group-focus-within:bg-green-500/60 transition-colors' />
+                  </div>
+                  <div className='h-5 w-px bg-slate-800 mx-2' />
                   <div className='flex items-center gap-3'>
-                    <div className='w-1.5 h-1.5 bg-[#ff4f00] rounded-full animate-ping' />
-                    <span className='text-[10px] font-black text-[#ff4f00] uppercase tracking-widest'>
-                      Analyzing via GPT-4o...
+                    <Terminal className='w-4 h-4 text-[#ff4f00]' />
+                    <span className='text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-focus-within:text-slate-200 transition-colors'>
+                      Input_Logic_Buffer
                     </span>
                   </div>
-                )}
+                </div>
+
+                <AnimatePresence>
+                  {isAnalyzing && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className='flex items-center gap-3 bg-[#ff4f00]/10 px-4 py-1.5 rounded-full border border-[#ff4f00]/20'
+                    >
+                      <span className='text-[9px] font-black text-[#ff4f00] uppercase tracking-widest'>
+                        Processing_Core_Heuristics
+                      </span>
+                      <RotateCcw className='w-3 h-3 text-[#ff4f00] animate-spin' />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+
               <textarea
-                className='w-full h-125 p-8 focus:outline-none font-mono text-sm leading-relaxed resize-none bg-transparent text-slate-100 placeholder:text-slate-700 border-none'
-                placeholder='// PASTE SOURCE CODE FOR ANALYSIS (ALL LANGUAGES)...'
+                className='w-full h-137.5 p-12 focus:outline-none font-mono text-sm leading-relaxed resize-none bg-transparent text-slate-300 placeholder:text-slate-800 border-none selection:bg-[#ff4f00]/40 custom-scrollbar'
+                placeholder='// SECURE CHANNEL OPEN. PASTE SOURCE FOR ARCHITECT ANALYSIS...'
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 spellCheck={false}
@@ -104,126 +141,230 @@ export default function CodeReviewHITL() {
             </div>
 
             {error && (
-              <div className='bg-red-50 border-l-4 border-red-500 p-4 flex items-center gap-3 text-red-600 text-[11px] font-black uppercase tracking-tight'>
-                <AlertTriangle className='w-4 h-4 shrink-0' /> {error}
-              </div>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className='bg-red-950/30 border-l-4 border-red-600 p-6 flex items-center gap-5 text-red-200 text-xs font-bold uppercase tracking-wide shadow-lg'
+              >
+                <AlertTriangle className='w-5 h-5 shrink-0 text-red-500' />{' '}
+                {error}
+              </motion.div>
             )}
 
             <button
               onClick={handleReview}
               disabled={!code || isAnalyzing}
-              className='w-full bg-[#ff4f00] text-white py-6 font-space font-black uppercase tracking-[0.3em] text-sm hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed group'
-            >
-              {isAnalyzing ? (
-                <span className='flex items-center justify-center gap-3'>
-                  <RotateCcw className='w-4 h-4 animate-spin' /> Processing
-                  Logic...
-                </span>
-              ) : (
-                'Execute Audit'
+              className={cn(
+                'w-full py-10 font-space font-black uppercase tracking-[0.5em] text-xs transition-all relative overflow-hidden group rounded-md',
+                isAnalyzing
+                  ? 'bg-slate-900 text-slate-600'
+                  : 'bg-[#ff4f00] text-white hover:bg-white hover:text-black',
               )}
+            >
+              <span className='relative z-10'>
+                {isAnalyzing
+                  ? 'Synchronizing Neural Paths...'
+                  : 'Execute Structural Audit'}
+              </span>
+              <div className='absolute inset-0 bg-black/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300' />
             </button>
           </motion.div>
         ) : (
           <motion.div
-            key='result'
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className='space-y-6'
+            key='result-view'
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className='space-y-8'
           >
-            {/* Header / New Audit */}
-            <div className='flex justify-between items-center bg-white border border-black/10 p-6 shadow-sm'>
-              <div className='flex items-center gap-4'>
-                <Check className='w-5 h-5 text-green-600' />
-                <h3 className='font-space font-black uppercase text-xs tracking-[0.3em] text-slate-900'>
-                  Analysis Completed
-                </h3>
+            {/* Analysis Summary Header */}
+            <div className='flex flex-col lg:flex-row justify-between items-stretch bg-white border border-slate-200 shadow-2xl rounded-md overflow-hidden'>
+              <div className='p-10 flex items-center gap-8 lg:border-r border-slate-100 flex-1'>
+                <div
+                  className={cn(
+                    'w-16 h-16 flex items-center justify-center rounded-2xl transition-colors shrink-0',
+                    hasIssues
+                      ? 'bg-red-50 text-red-600'
+                      : 'bg-green-50 text-green-600',
+                  )}
+                >
+                  {hasIssues ? (
+                    <ShieldAlert className='w-8 h-8' />
+                  ) : (
+                    <Check className='w-8 h-8' />
+                  )}
+                </div>
+                <div>
+                  <h3 className='font-space font-black uppercase text-lg tracking-tighter text-slate-950'>
+                    {hasIssues
+                      ? 'Vulnerabilities Identified'
+                      : 'Architecture Verified'}
+                  </h3>
+                  <p className='text-[10px] text-slate-400 font-mono uppercase tracking-[0.3em]'>
+                    Session_Token:{' '}
+                    {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                  </p>
+                </div>
               </div>
-              <div className='flex gap-4'>
+
+              <div className='bg-slate-50/50 p-8 flex items-center gap-4 flex-wrap'>
                 <button
                   onClick={copyToClipboard}
-                  className='flex items-center gap-2 px-5 py-2 border border-black text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all'
+                  className={cn(
+                    'flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-4 border-2 border-slate-950 text-[10px] font-black uppercase tracking-widest transition-all',
+                    copied
+                      ? 'bg-green-600 border-green-600 text-white'
+                      : 'hover:bg-slate-950 hover:text-white',
+                  )}
                 >
-                  <Copy className='w-3 h-3' /> Copy Code
+                  {copied ? (
+                    <Check className='w-4 h-4' />
+                  ) : (
+                    <Copy className='w-4 h-4' />
+                  )}
+                  {copied ? 'Captured' : 'Copy Optimized Code'}
                 </button>
                 <button
                   onClick={() => setResult(null)}
-                  className='bg-black text-white px-6 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff4f00] transition-all'
+                  className='flex-1 lg:flex-none bg-black text-white px-10 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-[#ff4f00] transition-all'
                 >
-                  New Session
+                  Terminate Session
                 </button>
               </div>
             </div>
 
-            {/* Metrics Row */}
-            <div className='grid grid-cols-1 md:grid-cols-3 gap-0 bg-slate-200 border border-slate-200 shadow-sm'>
-              <div className='bg-white p-6 border-r border-slate-200 group hover:bg-red-50/30 transition-colors'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <ShieldAlert className='w-4 h-4 text-red-600' />
-                  <span className='text-[9px] font-black text-slate-400 uppercase tracking-widest'>
-                    Security
-                  </span>
-                </div>
-                <div className='text-red-600 font-bold text-[11px] leading-relaxed'>
-                  {result.security.length > 0
-                    ? result.security.map((s, i) => <p key={i}>• {s}</p>)
-                    : 'No vulnerabilities detected.'}
-                </div>
-              </div>
-
-              <div className='bg-white p-6 border-r border-slate-200 group hover:bg-amber-50/30 transition-colors'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <AlertTriangle className='w-4 h-4 text-amber-600' />
-                  <span className='text-[9px] font-black text-slate-400 uppercase tracking-widest'>
-                    Logic / Bugs
-                  </span>
-                </div>
-                <div className='text-amber-700 font-bold text-[11px] leading-relaxed'>
-                  {result.bugs.length > 0
-                    ? result.bugs.map((b, i) => <p key={i}>• {b}</p>)
-                    : 'Logic structure is sound.'}
-                </div>
-              </div>
-
-              <div className='bg-white p-6 group hover:bg-blue-50/30 transition-colors'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <Zap className='w-4 h-4 text-blue-600' />
-                  <span className='text-[9px] font-black text-slate-400 uppercase tracking-widest'>
-                    Performance
-                  </span>
-                </div>
-                <div className='text-blue-600 font-bold text-[11px] leading-relaxed'>
-                  {result.performance.length > 0
-                    ? result.performance.map((p, i) => <p key={i}>• {p}</p>)
-                    : 'Optimization optimal.'}
-                </div>
-              </div>
+            {/* Insight Grid */}
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200 shadow-xl rounded-md overflow-hidden'>
+              <InsightCard
+                title='Security Threat'
+                items={result.security}
+                icon={ShieldAlert}
+                color='text-red-600'
+                bg='hover:bg-red-50/30'
+                emptyMsg='No critical security leaks found.'
+              />
+              <InsightCard
+                title='Logical Defects'
+                items={result.bugs}
+                icon={AlertTriangle}
+                color='text-amber-600'
+                bg='hover:bg-amber-50/30'
+                emptyMsg='Logical integrity is 100%.'
+              />
+              <InsightCard
+                title='Performance'
+                items={result.performance}
+                icon={Zap}
+                color='text-blue-600'
+                bg='hover:bg-blue-50/30'
+                emptyMsg='Performance peak reached.'
+              />
             </div>
 
-            {/* Code Comparison */}
-            <div className='bg-[#020617] border border-slate-800 shadow-2xl overflow-hidden'>
-              <div className='bg-slate-900/50 p-4 border-b border-slate-800 flex justify-between items-center'>
-                <div className='flex items-center gap-2'>
-                  <Cpu className='w-3 h-3 text-slate-500' />
-                  <span className='text-[9px] font-black text-slate-500 uppercase tracking-widest'>
-                    Architect_Diff_Engine
+            {/* Comparison Engine */}
+            <div className='bg-[#020617] border border-slate-800 shadow-[0_40px_100px_-30px_rgba(0,0,0,0.6)] rounded-md overflow-hidden'>
+              <div className='bg-slate-900/90 p-6 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 backdrop-blur-md'>
+                <div className='flex items-center gap-4'>
+                  <Cpu className='w-4 h-4 text-[#ff4f00]' />
+                  <span className='text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]'>
+                    Logic_Diff_Viewer
                   </span>
                 </div>
-                <div className='flex gap-6 font-mono text-[9px] font-bold uppercase'>
-                  <span className='text-red-500/80'>--- Original</span>
-                  <span className='text-green-500'>+++ Refactored</span>
+
+                <div className='flex items-center gap-6'>
+                  <button
+                    onClick={() => setIsSplitView(!isSplitView)}
+                    className='hidden sm:flex items-center gap-2 text-[9px] font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors'
+                  >
+                    <Layout className='w-3 h-3' />
+                    {isSplitView ? 'Unified View' : 'Split View'}
+                  </button>
+                  <div className='flex gap-6 font-mono text-[10px] font-bold'>
+                    <span className='text-red-500/80 uppercase tracking-tighter'>
+                      - DEPRECATED
+                    </span>
+                    <span className='text-green-500 uppercase tracking-tighter'>
+                      + OPTIMIZED
+                    </span>
+                  </div>
                 </div>
               </div>
-              <ReactDiffViewer
-                oldValue={code}
-                newValue={result.refactored_code}
-                splitView={true}
-                useDarkTheme={true}
-              />
+
+              <div className='diff-viewer-container overflow-x-auto'>
+                <ReactDiffViewer
+                  oldValue={code}
+                  newValue={result.refactored_code}
+                  splitView={isSplitView}
+                  useDarkTheme={true}
+                  styles={{
+                    variables: {
+                      dark: {
+                        diffViewerBackground: 'transparent',
+                        codeFoldGutterBackground: '#020617',
+                        addedBackground: 'rgba(34, 197, 94, 0.08)',
+                        addedGutterBackground: 'rgba(34, 197, 94, 0.12)',
+                        removedBackground: 'rgba(239, 68, 68, 0.08)',
+                        removedGutterBackground: 'rgba(239, 68, 68, 0.12)',
+                        wordAddedBackground: 'rgba(34, 197, 94, 0.25)',
+                        wordRemovedBackground: 'rgba(239, 68, 68, 0.25)',
+                      },
+                    },
+                    contentText: {
+                      fontSize: '13px',
+                      lineHeight: '22px',
+                      fontFamily: 'JetBrains Mono, Menlo, monospace',
+                    },
+                  }}
+                />
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+function InsightCard({ title, items, icon: Icon, color, bg, emptyMsg }: any) {
+  return (
+    <div
+      className={cn(
+        'bg-white p-10 transition-all duration-500 border-none h-full',
+        bg,
+      )}
+    >
+      <div className='flex items-center gap-4 mb-6'>
+        <div className={cn('p-2 rounded-lg bg-slate-50', color)}>
+          <Icon className='w-5 h-5' />
+        </div>
+        <span className='text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]'>
+          {title}
+        </span>
+      </div>
+      <div
+        className={cn('font-bold text-[13px] leading-relaxed space-y-4', color)}
+      >
+        {items && items.length > 0 ? (
+          items.map((item: string, i: number) => (
+            <motion.div
+              initial={{ opacity: 0, x: -5 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              key={i}
+              className='flex gap-4 group/item'
+            >
+              <span className='opacity-30 font-mono text-[10px] mt-1'>
+                0{i + 1}
+              </span>
+              <p className='flex-1'>{item}</p>
+            </motion.div>
+          ))
+        ) : (
+          <div className='flex items-center gap-3 opacity-40 italic font-medium'>
+            <Check className='w-4 h-4 text-slate-400' />
+            <p>{emptyMsg}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

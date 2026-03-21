@@ -8,7 +8,9 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://code-review-ai-f1se.onrender.com"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

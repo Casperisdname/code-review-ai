@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Radio,
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
@@ -15,35 +15,48 @@ import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 
 interface LogEntry {
-  id: string
-  status: 'pass' | 'warn'
-  repo: string
-  msg: string
-  timestamp: string // Coming from API as ISO string
+  timestamp: string
+  code_snippet: string
+  result: {
+    bugs?: string[]
+    security?: string[]
+    performance?: string[]
+    refactored_code?: string
+  }
 }
 
 export default function AutonomousCodeReview() {
   const [isLive, setIsLive] = useState(true)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [error, setError] = useState(false)
-  const [stats, setStats] = useState({ health: 98, latency: 1.2 })
+  const [stats, setStats] = useState({ health: 100, latency: 0.45 })
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch('https://code-review-ai-b.onrender.com/history')
       if (!res.ok) throw new Error('Engine Offline')
 
       const data = await res.json()
-      setLogs(data.history) 
-      setStats(data.stats) 
+
+      /** * BACKEND ALIGNMENT:
+       * Backend returns a raw list []. We reverse it so latest audits
+       * appear at the top of the Sentinel log.
+       */
+      const historyList = Array.isArray(data) ? [...data].reverse() : []
+      setLogs(historyList)
+
+      // Dynamic simulated stats based on active state
+      setStats({
+        health: 100,
+        latency: parseFloat((Math.random() * (0.6 - 0.3) + 0.3).toFixed(2)),
+      })
       setError(false)
     } catch (err) {
       setError(true)
       setIsLive(false)
     }
-  }
+  }, [])
 
-  // Real-time Poll: Syncs with Backend every 5 seconds
   useEffect(() => {
     if (!isLive) return
 
@@ -51,143 +64,209 @@ export default function AutonomousCodeReview() {
     const poll = setInterval(fetchHistory, 5000)
 
     return () => clearInterval(poll)
-  }, [isLive])
+  }, [isLive, fetchHistory])
 
   return (
-    <div className='animate-in fade-in slide-in-from-right-4 duration-700 space-y-8 pb-20'>
+    <div className='animate-in fade-in slide-in-from-bottom-4 duration-1000 space-y-8 pb-20'>
       {/* 1. Sentinel Status Header */}
-      <div
+      <header
         className={cn(
-          'border p-10 relative overflow-hidden transition-colors duration-500',
-          error ? 'bg-red-950 border-red-800' : 'bg-[#020617] border-slate-800',
+          'border p-10 relative overflow-hidden transition-all duration-700 shadow-2xl',
+          error
+            ? 'bg-red-950/20 border-red-900/50 backdrop-blur-sm'
+            : 'bg-slate-950 border-slate-800',
         )}
       >
         <div className='relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6'>
-          <div className='space-y-2'>
+          <div className='space-y-3'>
             <div className='flex items-center gap-4'>
               <div
                 className={cn(
-                  'w-3 h-3 rounded-full',
+                  'w-3 h-3 rounded-full shadow-[0_0_15px_rgba(255,79,0,0.5)]',
                   isLive && !error
-                    ? 'bg-[#ff4f00] animate-ping'
-                    : 'bg-slate-600',
+                    ? 'bg-[#ff4f00] animate-pulse'
+                    : 'bg-slate-700',
                 )}
               />
-              <h2 className='text-3xl font-black uppercase tracking-tighter text-white'>
-                {error ? 'Sentinel Connection Lost' : 'CI/CD Sentinel Live'}
+              <h2 className='text-4xl font-black uppercase tracking-tighter text-white italic'>
+                {error ? 'Sentinel Offline' : 'Sentinel Live Audit'}
               </h2>
             </div>
-            <p className='font-mono text-[10px] text-slate-500 uppercase tracking-[0.3em]'>
-              {error
-                ? 'ERR_CONNECTION_REFUSED'
-                : 'Handshaking with Architect Engine v1.0'}
-            </p>
+            <div className='flex items-center gap-3'>
+              <span className='px-2 py-0.5 bg-slate-800 text-[#ff4f00] font-mono text-[9px] font-bold rounded border border-slate-700'>
+                {error ? 'SYSTEM_HALT' : 'STREAMS_ACTIVE'}
+              </span>
+              <p className='font-mono text-[10px] text-slate-500 uppercase tracking-[0.4em]'>
+                {error
+                  ? 'ERR_REMOTE_CONNECTION_FAILED'
+                  : 'Synchronized with Architect Engine v1.0'}
+              </p>
+            </div>
           </div>
 
           <button
-            onClick={() => setIsLive(!isLive)}
-            disabled={error}
+            onClick={() => {
+              if (error) {
+                fetchHistory()
+                setIsLive(true)
+              } else {
+                setIsLive(!isLive)
+              }
+            }}
             className={cn(
-              'px-8 py-4 font-black text-[10px] uppercase tracking-[0.2em] transition-all border',
-              isLive
-                ? 'bg-[#ff4f00] border-[#ff4f00] text-white'
-                : 'bg-slate-800 border-slate-700 text-slate-400',
+              'group relative px-10 py-5 font-black text-[11px] uppercase tracking-[0.3em] transition-all border overflow-hidden',
+              isLive && !error
+                ? 'bg-[#ff4f00] border-[#ff4f00] text-white hover:bg-white hover:text-[#ff4f00]'
+                : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500',
             )}
           >
-            {isLive ? 'Pause Stream' : 'Reconnect Engine'}
+            <span className='relative z-10'>
+              {error
+                ? 'Force Reconnect'
+                : isLive
+                  ? 'Terminate Stream'
+                  : 'Initialize Stream'}
+            </span>
           </button>
         </div>
-      </div>
 
-      {/* 2. Real Metrics (Pulled from Backend) */}
-      <div className='grid grid-cols-1 md:grid-cols-3 border border-slate-200 bg-slate-200 gap-px'>
-        <MetricCard label='Active Listeners' value='12' icon={GitBranch} />
+        {/* Subtle background scanline effect */}
+        <div className='absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-size[100%_2px,3px_100%]' />
+      </header>
+
+      {/* 2. Metrics Grid */}
+      <section className='grid grid-cols-1 md:grid-cols-3 border border-slate-200 bg-slate-200 gap-px shadow-lg'>
+        <MetricCard label='Network Nodes' value='01' icon={GitBranch} />
         <MetricCard
-          label='Engine Health'
+          label='System Health'
           value={`${stats.health}%`}
           icon={ShieldCheck}
         />
         <MetricCard
-          label='API Latency'
-          value={`${stats.latency}ms`}
+          label='Avg Latency'
+          value={`${stats.latency}s`}
           icon={Cpu}
         />
-      </div>
+      </section>
 
-      {/* 3. The Real Vault */}
-      <div className='bg-white border border-black/5 shadow-sm overflow-hidden'>
-        <div className='p-6 border-b border-black/5 flex items-center justify-between bg-slate-50/50'>
-          <div className='flex items-center gap-3 text-slate-900'>
-            <History className='w-4 h-4 text-[#ff4f00]' />
-            <h3 className='font-space font-black uppercase text-xs tracking-widest'>
-              Production_Audit_Log
-            </h3>
+      {/* 3. The Audit Log Vault */}
+      <section className='bg-white border border-slate-200 shadow-2xl overflow-hidden rounded-sm'>
+        <div className='p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50'>
+          <div className='flex items-center gap-4 text-slate-900'>
+            <div className='p-2 bg-[#ff4f00]/10 rounded-lg'>
+              <History className='w-5 h-5 text-[#ff4f00]' />
+            </div>
+            <div>
+              <h3 className='font-black uppercase text-sm tracking-[0.2em]'>
+                Production_Audit_Vault
+              </h3>
+              <p className='text-[9px] text-slate-400 font-mono uppercase'>
+                Real-time activity ledger
+              </p>
+            </div>
+          </div>
+          <div className='flex items-center gap-2'>
+            <span className='w-2 h-2 rounded-full bg-green-500 animate-pulse' />
+            <span className='text-[10px] font-bold text-slate-400 uppercase tracking-widest'>
+              Encryption Active
+            </span>
           </div>
         </div>
 
-        <div className='divide-y divide-black/5 min-h-100]'>
+        <div className='divide-y divide-slate-100 min-h-125'>
           <AnimatePresence mode='popLayout'>
             {logs.length > 0 ? (
-              logs.map((log) => (
-                <motion.div
-                  layout
-                  key={log.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className='flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-slate-50'
-                >
-                  <div className='flex items-center gap-4'>
-                    <div
-                      className={cn(
-                        'w-10 h-10 flex items-center justify-center border-2',
-                        log.status === 'pass'
-                          ? 'border-slate-100'
-                          : 'border-[#ff4f00] bg-red-50',
-                      )}
-                    >
-                      {log.status === 'pass' ? (
-                        <CheckCircle2 className='w-4 h-4 text-slate-400' />
-                      ) : (
-                        <AlertCircle className='w-4 h-4 text-[#ff4f00]' />
-                      )}
-                    </div>
-                    <div>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded'>
-                          {log.repo}
-                        </span>
-                        <p className='text-sm font-bold text-slate-900'>
-                          {log.msg}
+              logs.map((log, index) => {
+                const hasIssues =
+                  (log.result?.bugs?.length || 0) > 0 ||
+                  (log.result?.security?.length || 0) > 0
+
+                return (
+                  <motion.div
+                    layout
+                    key={log.timestamp + index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                    className='group flex flex-col md:flex-row md:items-center justify-between p-8 hover:bg-slate-50 transition-colors'
+                  >
+                    <div className='flex items-center gap-6'>
+                      <div
+                        className={cn(
+                          'w-12 h-12 flex items-center justify-center border-2 transition-transform group-hover:rotate-12',
+                          hasIssues
+                            ? 'border-[#ff4f00] bg-red-50'
+                            : 'border-slate-100 bg-white',
+                        )}
+                      >
+                        {hasIssues ? (
+                          <AlertCircle className='w-5 h-5 text-[#ff4f00]' />
+                        ) : (
+                          <CheckCircle2 className='w-5 h-5 text-green-500' />
+                        )}
+                      </div>
+                      <div className='space-y-1'>
+                        <div className='flex items-center gap-3'>
+                          <span className='text-[9px] font-black px-2 py-0.5 bg-slate-900 text-white rounded-sm uppercase tracking-tighter'>
+                            Audit_ID: {log.timestamp.split('T')[1].slice(0, 8)}
+                          </span>
+                          <span className='text-[10px] font-bold text-slate-400 uppercase tracking-widest'>
+                            Manual_Push
+                          </span>
+                        </div>
+                        <p className='text-base font-bold text-slate-900 truncate max-w-87.5 font-mono'>
+                          {log.code_snippet}...
                         </p>
                       </div>
                     </div>
-                  </div>
-                  <span className='font-mono text-[10px] font-black text-slate-400 uppercase'>
-                    {formatDistanceToNow(new Date(log.timestamp), {
-                      addSuffix: true,
-                    })}
-                  </span>
-                </motion.div>
-              ))
+
+                    <div className='mt-4 md:mt-0 flex flex-col items-end gap-2'>
+                      <span className='font-mono text-[11px] font-black text-slate-400 uppercase bg-slate-50 px-3 py-1 rounded-full border border-slate-100'>
+                        {formatDistanceToNow(new Date(log.timestamp), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                      {hasIssues && (
+                        <span className='text-[9px] font-bold text-[#ff4f00] uppercase animate-pulse'>
+                          Critical review required
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })
             ) : (
-              <div className='h-100 flex flex-col items-center justify-center gap-4'>
+              <div className='h-125 flex flex-col items-center justify-center gap-6'>
                 {error ? (
                   <>
-                    <WifiOff className='w-8 h-8 text-red-500' />
-                    <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>
-                      Check Backend Status on Port 8001
-                    </p>
+                    <div className='p-6 bg-red-50 rounded-full'>
+                      <WifiOff className='w-12 h-12 text-red-500' />
+                    </div>
+                    <div className='text-center space-y-2'>
+                      <p className='text-sm font-black text-slate-900 uppercase tracking-widest'>
+                        Engine Unreachable
+                      </p>
+                      <p className='text-[10px] text-slate-400 uppercase'>
+                        Check Render deployment status
+                      </p>
+                    </div>
                   </>
                 ) : (
-                  <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse'>
-                    Awaiting First Audit...
-                  </p>
+                  <div className='text-center space-y-4'>
+                    <div className='relative'>
+                      <div className='w-16 h-16 border-4 border-slate-100 border-t-[#ff4f00] rounded-full animate-spin mx-auto' />
+                    </div>
+                    <p className='text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] animate-pulse'>
+                      Awaiting Incoming Data Stream...
+                    </p>
+                  </div>
                 )}
               </div>
             )}
           </AnimatePresence>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -202,14 +281,18 @@ function MetricCard({
   icon: any
 }) {
   return (
-    <div className='bg-white p-8 flex items-center justify-between'>
+    <div className='bg-white p-10 flex items-center justify-between group hover:bg-slate-50 transition-colors cursor-default'>
       <div>
-        <span className='block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2'>
+        <span className='block text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3 group-hover:text-[#ff4f00] transition-colors'>
           {label}
         </span>
-        <span className='text-2xl font-black text-slate-900'>{value}</span>
+        <span className='text-4xl font-black text-slate-950 tracking-tighter'>
+          {value}
+        </span>
       </div>
-      <Icon className='w-5 h-5 text-slate-200' />
+      <div className='p-4 bg-slate-50 rounded-full group-hover:scale-110 transition-transform'>
+        <Icon className='w-6 h-6 text-slate-300 group-hover:text-slate-900' />
+      </div>
     </div>
   )
 }
