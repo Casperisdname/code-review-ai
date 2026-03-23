@@ -48,3 +48,7 @@ async def review(
 @app.get("/history")
 async def get_history():
     return history
+
+@app.post("/history")
+async def post_history():
+    return history
