@@ -7,6 +7,8 @@ function Paste() {
   const [file, setFile] = useState(null);
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [language, setLanguage] = useState("English");
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -14,13 +16,19 @@ function Paste() {
 
   const handleSubmit = async () => {
     if (!code && !file) {
-      alert("Please provide code or upload a file");
+      setError("Please provide code or upload a file");
+
+      setTimeout(() => {
+        setError("");
+      }, 3000);
+
       return;
     }
 
     const formData = new FormData();
     if (code) formData.append("code", code);
     if (file) formData.append("file", file);
+    formData.append("language", language);
 
     setLoading(true);
     setReview(null);
@@ -30,11 +38,17 @@ function Paste() {
         method: "POST",
         body: formData,
       });
+
       const data = await res.json();
       setReview(data);
     } catch (err) {
       console.error(err);
-      alert("Error reviewing code");
+
+      setError("Error reviewing code");
+
+      setTimeout(() => {
+        setError("");
+      }, 3000);
     } finally {
       setLoading(false);
     }
@@ -47,6 +61,8 @@ function Paste() {
       style={{ padding: "40px", textAlign: "center" }}
     >
       <h1>Paste or Upload Your Code</h1>
+
+      {error && <div className="review-error">{error}</div>}
 
       <textarea
         placeholder="Paste your code here"
@@ -65,7 +81,12 @@ function Paste() {
       ></textarea>
 
       <div style={{ marginBottom: "20px" }}>
-        <input type="file" onChange={handleFileChange} />
+        <label className="upload-btn">
+          Upload Code File
+          <input type="file" onChange={handleFileChange} hidden />
+        </label>
+
+        {file && <p style={{ marginTop: "10px" }}>Selected: {file.name}</p>}
       </div>
 
       <button
@@ -85,20 +106,20 @@ function Paste() {
         {loading ? "Reviewing..." : "Upload & Review"}
       </button>
 
-      <div>
-        <select
-          style={{
-            padding: "8px 15px",
-            borderRadius: "6px",
-            marginBottom: "20px",
-          }}
-        >
-          <option>Language</option>
-          <option value="english">English</option>
-          <option value="spanish">Spanish</option>
-          <option value="french">French</option>
-          <option value="german">German</option>
-        </select>
+      <div className="language-options" style={{ marginBottom: "20px" }}>
+        <p style={{ marginBottom: "10px" }}>Language</p>
+
+        <div className="lang-buttons">
+          {["English", "Spanish", "French", "German"].map((lang) => (
+            <button
+              key={lang}
+              onClick={() => setLanguage(lang)}
+              className={language === lang ? "lang-active" : "lang-btn"}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
       </div>
 
       {review && (
