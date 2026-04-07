@@ -129,6 +129,78 @@ body {
   font-size: 28px;
   color: white;
 }
+.upload-btn {
+  background: #2563eb;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.lang-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lang-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+}
+.review-error {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  color: #ff4d4d;
+
+  padding: 12px 20px;
+  border-radius: 12px;
+
+  width: fit-content;
+  margin: 10px auto 20px;
+
+  font-size: 14px;
+}
+.how {
+  text-align: center;
+  color: white;
+  margin-top: 100px;
+}
+
+.howHeading {
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.howList {
+  list-style: none;
+  width: 300px;
+  margin: 30px auto;
+  padding: 0;
+}
+
+.hl {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.hl img {
+  width: 40px;
+}
+
+.lang-active {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background: #745fff;
+  color: white;
+}
 
 .paste textarea {
   width: 100%;
